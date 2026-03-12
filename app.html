@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Bridge | Clinical Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/fhirclient/build/fhir-client.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --card: #1e293b;
+            --card-hover: #253349;
+            --text: #f8fafc;
+            --dim: #94a3b8;
+            --primary: #0ea5e9;
+            --green: #10b981;
+            --red: #f43f5e;
+            --yellow: #f59e0b;
+            --purple: #a78bfa;
+            --pink: #f472b6;
+            --border: rgba(255, 255, 255, 0.06);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* ── Top Nav ── */
+        .topbar {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-logo {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--primary), var(--purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .topbar-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .logout-btn {
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid rgba(244, 63, 94, 0.2);
+            background: rgba(244, 63, 94, 0.05);
+            color: var(--red);
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: var(--red);
+            color: white;
+        }
+
+        /* ── Main Layout ── */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        /* ── Welcome Card ── */
+        .welcome-card {
+            background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .welcome-avatar {
+            width: 96px;
+            height: 96px;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: 700;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
+        }
+
+        .welcome-info h2 {
+            margin: 0 0 8px 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .welcome-details {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .welcome-detail {
+            font-size: 14px;
+            color: var(--dim);
+        }
+
+        .welcome-detail strong {
+            color: var(--text);
+            margin-left: 4px;
+        }
+
+        /* ── Section Grid ── */
+        .section-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .section-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .section-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .section-count {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--dim);
+        }
+
+        .section-body {
+            padding: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        /* ── Data Items ── */
+        .data-item {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 4px;
+            transition: background 0.15s;
+        }
+
+        .data-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .data-item-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .data-item-meta {
+            font-size: 12px;
+            color: var(--dim);
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .data-item-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* ── Vital Signs Table ── */
+        .vital-row {
+            display: grid;
+            grid-template-columns: 1fr 120px 100px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 4px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .vital-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .vital-name {
+            font-weight: 600;
+        }
+
+        .vital-value {
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .vital-date {
+            font-size: 11px;
+            color: var(--dim);
+            text-align: right;
+        }
+
+        /* ── Vital Sign Cards Grid ── */
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            padding: 8px;
+        }
+
+        .vital-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            transition: all 0.2s;
+        }
+
+        .vital-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .vital-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .vital-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .vital-card-label {
+            font-size: 12px;
+            color: var(--dim);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .vital-card-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            line-height: 1.2;
+        }
+
+        .vital-card-unit {
+            font-size: 14px;
+            font-weight: 400;
+            opacity: 0.6;
+        }
+
+        .vital-card-date {
+            font-size: 11px;
+            color: var(--dim);
+        }
+
+        .vital-card-history {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+
+        .vital-history-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            padding: 3px 0;
+            color: var(--dim);
+        }
+
+        .vital-history-row .vh-val {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* ── Loading & Empty States ── */
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--dim);
+            font-size: 14px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 0.8s ease-in-out infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--dim);
+            font-size: 13px;
+        }
+
+        /* ── Scrollbar ── */
+        .section-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .section-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .section-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        @media (max-width: 900px) {
+            .section-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .welcome-details {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ═══ Top Navigation ═══ -->
+    <div class="topbar">
+        <div class="topbar-logo">Health Bridge</div>
+        <div class="topbar-right">
+            <div class="topbar-badge" id="connection-badge">Connecting...</div>
+            <button class="logout-btn"
+                onclick="sessionStorage.clear(); localStorage.clear(); location.href='index.html'">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- ═══ Welcome Card ═══ -->
+        <div class="welcome-card">
+            <div class="welcome-avatar" id="avatar">?</div>
+            <div class="welcome-info">
+                <h2 id="patient-name">Loading patient record...</h2>
+                <div class="welcome-details">
+                    <div class="welcome-detail">Gender: <strong id="w-gender">-</strong></div>
+                    <div class="welcome-detail">DOB: <strong id="w-dob">-</strong></div>
+                    <div class="welcome-detail">ID: <strong id="w-id">-</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Clinical Data Grid ═══ -->
+        <div class="section-grid">
+            <!-- Medications -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="section-title">
+                        <div class="section-icon" style="background:rgba(167,139,250,0.1);color:var(--purple);">💊</div>
+                        Medications
+                    </div>
+                    <div class="section-count" id="med-count">Loading...</div>
+                </div>
+                <div class="section-body" id="med-list">
+                    <div class="loading-state">
+                        <div class="spinner"></div><br>Fetching medications...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lab Reports -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="section-title">
+                        <div class="section-icon" style="background:rgba(14,165,233,0.1);color:var(--primary);">🔬</div>
+                        Lab Reports
+                    </div>
+                    <div class="section-count" id="lab-count">Loading...</div>
+                </div>
+                <div class="section-body" id="lab-list">
+                    <div class="loading-state">
+                        <div class="spinner"></div><br>Fetching lab results...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vital Signs (full width) -->
+            <div class="section-card" style="grid-column: 1 / -1;">
+                <div class="section-header">
+                    <div class="section-title">
+                        <div class="section-icon" style="background:rgba(16,185,129,0.1);color:var(--green);">❤️</div>
+                        Vital Signs
+                    </div>
+                    <div class="section-count" id="vital-count">Loading...</div>
+                </div>
+                <div class="section-body" id="vital-list">
+                    <div class="loading-state">
+                        <div class="spinner"></div><br>Fetching vital signs...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════
+        //  UTILITY FUNCTIONS
+        // ═══════════════════════════════════════════
+
+        function formatDate(dateStr) {
+            if (!dateStr) return "N/A";
+            try {
+                const d = new Date(dateStr);
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            } catch { return dateStr; }
+        }
+
+        function decodeJWT(token) {
+            try {
+                return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            } catch { return null; }
+        }
+
+        // ═════════════════════════════════════════
+        //  RENDER FUNCTIONS
+        // ═════════════════════════════════════════
+
+        function renderWelcome(patient) {
+            const given = patient.name?.[0]?.given?.join(" ") || "";
+            const family = patient.name?.[0]?.family || "";
+            const name = `${given} ${family}`.trim() || patient.id;
+
+            document.getElementById('patient-name').innerText = `Welcome, ${name}`;
+            document.getElementById('avatar').innerText = name.charAt(0).toUpperCase();
+            document.getElementById('w-gender').innerText = (patient.gender || "Unknown").charAt(0).toUpperCase() + (patient.gender || "").slice(1);
+            document.getElementById('w-dob').innerText = formatDate(patient.birthDate);
+            document.getElementById('w-id').innerText = patient.id;
+        }
+
+        function renderMedications(meds) {
+            const container = document.getElementById('med-list');
+            const countEl = document.getElementById('med-count');
+
+            if (!meds || meds.length === 0) {
+                container.innerHTML = '<div class="empty-state">No medications found for this patient.</div>';
+                countEl.innerText = "0 records";
+                return;
+            }
+
+            countEl.innerText = `${meds.length} record${meds.length > 1 ? 's' : ''}`;
+            container.innerHTML = meds.map(med => {
+                // Extract medication name from different possible locations
+                const name = med.medicationCodeableConcept?.text
+                    || med.medicationCodeableConcept?.coding?.[0]?.display
+                    || med.medicationReference?.display
+                    || "Unknown Medication";
+
+                const status = med.status || "unknown";
+                const authored = formatDate(med.authoredOn);
+                const dosage = med.dosageInstruction?.[0]?.text || "";
+                const intent = med.intent || "";
+
+                // Status badge color
+                let statusColor = 'var(--dim)';
+                if (status === 'active') statusColor = 'var(--green)';
+                else if (status === 'completed') statusColor = 'var(--primary)';
+                else if (status === 'stopped' || status === 'cancelled') statusColor = 'var(--red)';
+
+                return `
+                    <div class="data-item">
+                        <div class="data-item-title">
+                            ${name}
+                            <span class="data-item-badge" style="background:${statusColor}15;color:${statusColor};margin-left:8px;">${status}</span>
+                        </div>
+                        <div class="data-item-meta">
+                            ${dosage ? `<span>📋 ${dosage}</span>` : ''}
+                            <span>📅 ${authored}</span>
+                            ${intent ? `<span>🏷️ ${intent}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderLabs(labs) {
+            const container = document.getElementById('lab-list');
+            const countEl = document.getElementById('lab-count');
+
+            if (!labs || labs.length === 0) {
+                container.innerHTML = '<div class="empty-state">No lab results found for this patient.</div>';
+                countEl.innerText = "0 records";
+                return;
+            }
+
+            countEl.innerText = `${labs.length} record${labs.length > 1 ? 's' : ''}`;
+            container.innerHTML = labs.map(lab => {
+                const name = lab.code?.text || lab.code?.coding?.[0]?.display || "Lab Test";
+                const date = formatDate(lab.effectiveDateTime || lab.issued);
+                const status = lab.status || "";
+
+                // Value extraction: could be valueQuantity, valueString, valueCodeableConcept
+                let value = "";
+                if (lab.valueQuantity) {
+                    value = `${lab.valueQuantity.value} ${lab.valueQuantity.unit || lab.valueQuantity.code || ""}`;
+                } else if (lab.valueString) {
+                    value = lab.valueString;
+                } else if (lab.valueCodeableConcept) {
+                    value = lab.valueCodeableConcept.text || lab.valueCodeableConcept.coding?.[0]?.display || "";
+                }
+
+                // Reference range
+                const refRange = lab.referenceRange?.[0];
+                let rangeText = "";
+                if (refRange) {
+                    const low = refRange.low?.value;
+                    const high = refRange.high?.value;
+                    const unit = refRange.low?.unit || refRange.high?.unit || "";
+                    if (low != null && high != null) rangeText = `${low}-${high} ${unit}`;
+                    else if (high != null) rangeText = `< ${high} ${unit}`;
+                    else if (low != null) rangeText = `> ${low} ${unit}`;
+                }
+
+                // Abnormal flag
+                const interp = lab.interpretation?.[0]?.coding?.[0]?.code;
+                let flag = "";
+                if (interp === "H" || interp === "HH") flag = `<span class="data-item-badge" style="background:rgba(244,63,94,0.1);color:var(--red);">HIGH</span>`;
+                else if (interp === "L" || interp === "LL") flag = `<span class="data-item-badge" style="background:rgba(245,158,11,0.1);color:var(--yellow);">LOW</span>`;
+
+                return `
+                    <div class="data-item">
+                        <div class="data-item-title">${name} ${flag}</div>
+                        <div class="data-item-meta">
+                            ${value ? `<span>📊 <strong style="color:var(--text)">${value}</strong></span>` : ''}
+                            ${rangeText ? `<span>📏 Ref: ${rangeText}</span>` : ''}
+                            <span>📅 ${date}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Configuration for vital sign types with LOINC codes
+        const VITAL_TYPES = [
+            { key: 'bp', loinc: '85354-9', label: 'Blood Pressure', icon: '🫀', color: 'var(--red)', bg: 'rgba(244,63,94,0.1)', unit: 'mmHg' },
+            { key: 'heart_rate', loinc: '8867-4', label: 'Heart Rate', icon: '💓', color: 'var(--pink)', bg: 'rgba(244,114,182,0.1)', unit: 'bpm' },
+            { key: 'resp_rate', loinc: '9279-1', label: 'Respiratory Rate', icon: '🌬️', color: 'var(--green)', bg: 'rgba(16,185,129,0.1)', unit: '/min' },
+            { key: 'temp', loinc: '8310-5', label: 'Temperature', icon: '🌡️', color: 'var(--yellow)', bg: 'rgba(245,158,11,0.1)', unit: '°F' },
+            { key: 'spo2', loinc: '2708-6', label: 'Oxygen Saturation', icon: '🫁', color: 'var(--primary)', bg: 'rgba(14,165,233,0.1)', unit: '%' },
+            { key: 'height', loinc: '8302-2', label: 'Height', icon: '📏', color: 'var(--purple)', bg: 'rgba(167,139,250,0.1)', unit: '' },
+            { key: 'weight', loinc: '29463-7', label: 'Weight', icon: '⚖️', color: '#f97316', bg: 'rgba(249,115,22,0.1)', unit: '' },
+            { key: 'bmi', loinc: '39156-5', label: 'BMI', icon: '📊', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)', unit: 'kg/m²' },
+        ];
+
+        function extractVitalValue(obs) {
+            // Simple value
+            if (obs.valueQuantity) {
+                const val = obs.valueQuantity.value;
+                const unit = obs.valueQuantity.unit || obs.valueQuantity.code || '';
+                return { display: `${val}`, unit: unit, raw: val };
+            }
+            if (obs.valueString) {
+                return { display: obs.valueString, unit: '', raw: obs.valueString };
+            }
+            // Component-based (e.g., blood pressure)
+            if (obs.component && obs.component.length > 0) {
+                const systolic = obs.component.find(c =>
+                    c.code?.coding?.some(cd => cd.code === '8480-6') ||
+                    c.code?.text?.toLowerCase().includes('systolic')
+                );
+                const diastolic = obs.component.find(c =>
+                    c.code?.coding?.some(cd => cd.code === '8462-4') ||
+                    c.code?.text?.toLowerCase().includes('diastolic')
+                );
+                const sysVal = systolic?.valueQuantity?.value ?? '—';
+                const diaVal = diastolic?.valueQuantity?.value ?? '—';
+                return { display: `${sysVal}/${diaVal}`, unit: 'mmHg', raw: sysVal };
+            }
+            return { display: 'N/A', unit: '', raw: null };
+        }
+
+        function renderVitals(vitalsByType) {
+            const container = document.getElementById('vital-list');
+            const countEl = document.getElementById('vital-count');
+
+            // Count total readings
+            let totalCount = 0;
+            const cardsWithData = [];
+
+            VITAL_TYPES.forEach(vt => {
+                const readings = vitalsByType[vt.key] || [];
+                totalCount += readings.length;
+                if (readings.length > 0) {
+                    cardsWithData.push({ ...vt, readings });
+                }
+            });
+
+            // Also handle any uncategorized vitals from the generic query
+            const uncategorized = vitalsByType['_other'] || [];
+            totalCount += uncategorized.length;
+
+            if (totalCount === 0) {
+                container.innerHTML = '<div class="empty-state">No vital signs found for this patient.</div>';
+                countEl.innerText = "0 records";
+                return;
+            }
+
+            countEl.innerText = `${totalCount} reading${totalCount !== 1 ? 's' : ''}`;
+
+            let html = '<div class="vitals-grid">';
+
+            cardsWithData.forEach(vt => {
+                const latest = vt.readings[0];
+                const val = extractVitalValue(latest);
+                const date = formatDate(latest.effectiveDateTime);
+
+                html += `<div class="vital-card">
+                    <div class="vital-card-header">
+                        <div class="vital-card-icon" style="background:${vt.bg};color:${vt.color}">${vt.icon}</div>
+                        <div class="vital-card-label">${vt.label}</div>
+                    </div>
+                    <div class="vital-card-value" style="color:${vt.color}">
+                        ${val.display} <span class="vital-card-unit">${val.unit}</span>
+                    </div>
+                    <div class="vital-card-date">📅 ${date}</div>`;
+
+                // Show up to 3 previous readings
+                if (vt.readings.length > 1) {
+                    html += '<div class="vital-card-history">';
+                    vt.readings.slice(1, 4).forEach(r => {
+                        const rv = extractVitalValue(r);
+                        const rd = formatDate(r.effectiveDateTime);
+                        html += `<div class="vital-history-row">
+                            <span class="vh-val">${rv.display} ${rv.unit}</span>
+                            <span>${rd}</span>
+                        </div>`;
+                    });
+                    if (vt.readings.length > 4) {
+                        html += `<div class="vital-history-row" style="justify-content:center;opacity:0.5;">+${vt.readings.length - 4} more</div>`;
+                    }
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            });
+
+            // Render uncategorized vitals
+            uncategorized.forEach(obs => {
+                const name = obs.code?.text || obs.code?.coding?.[0]?.display || 'Vital Sign';
+                const val = extractVitalValue(obs);
+                const date = formatDate(obs.effectiveDateTime);
+
+                html += `<div class="vital-card">
+                    <div class="vital-card-header">
+                        <div class="vital-card-icon" style="background:rgba(148,163,184,0.1);color:var(--dim)">📋</div>
+                        <div class="vital-card-label">${name}</div>
+                    </div>
+                    <div class="vital-card-value">${val.display} <span class="vital-card-unit">${val.unit}</span></div>
+                    <div class="vital-card-date">📅 ${date}</div>
+                </div>`;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ═══════════════════════════════════════
+        //  FHIR DATA FETCHING
+        // ═══════════════════════════════════════
+
+        async function fetchAll(client, pid) {
+            const headers = { "Accept": "application/fhir+json" };
+
+            // 1. Patient Demographics
+            try {
+                const patient = await client.request({ url: `Patient/${pid}`, headers });
+                renderWelcome(patient);
+            } catch (e) {
+                document.getElementById('patient-name').innerText = "Failed to load patient";
+                console.error("Patient fetch error:", e);
+            }
+
+            // 2. Medications (MedicationRequest)
+            try {
+                const medBundle = await client.request({ url: `MedicationRequest?patient=${pid}`, headers });
+                const meds = medBundle.entry?.map(e => e.resource) || [];
+                renderMedications(meds);
+            } catch (e) {
+                document.getElementById('med-list').innerHTML = `<div class="empty-state">⚠️ Could not load medications<br><span style="font-size:11px;opacity:0.6">${e.message || ''}</span></div>`;
+                document.getElementById('med-count').innerText = "Error";
+                console.error("Medications error:", e);
+            }
+
+            // 3. Lab Results (Observation with category=laboratory)
+            try {
+                const labBundle = await client.request({ url: `Observation?patient=${pid}&category=laboratory&_count=50&_sort=-date`, headers });
+                const labs = labBundle.entry?.map(e => e.resource) || [];
+                renderLabs(labs);
+            } catch (e) {
+                document.getElementById('lab-list').innerHTML = `<div class="empty-state">⚠️ Could not load lab results<br><span style="font-size:11px;opacity:0.6">${e.message || ''}</span></div>`;
+                document.getElementById('lab-count').innerText = "Error";
+                console.error("Labs error:", e);
+            }
+
+            // 4. Vital Signs — Query each type individually by LOINC code for full coverage
+            try {
+                const vitalsByType = {};
+                const knownLoincs = new Set();
+
+                // Fetch each vital type by LOINC code in parallel
+                const vitalPromises = VITAL_TYPES.map(async (vt) => {
+                    try {
+                        const bundle = await client.request({
+                            url: `Observation?patient=${pid}&code=${vt.loinc}&_count=10&_sort=-date`,
+                            headers
+                        });
+                        const entries = bundle.entry?.map(e => e.resource) || [];
+                        vitalsByType[vt.key] = entries;
+                        // Track all LOINC codes we've seen
+                        entries.forEach(obs => {
+                            obs.code?.coding?.forEach(c => knownLoincs.add(c.code));
+                        });
+                    } catch (err) {
+                        console.warn(`Could not fetch ${vt.label}:`, err.message);
+                        vitalsByType[vt.key] = [];
+                    }
+                });
+
+                // Also run the generic category query to catch anything we missed
+                const genericPromise = (async () => {
+                    try {
+                        const bundle = await client.request({
+                            url: `Observation?patient=${pid}&category=vital-signs&_count=50&_sort=-date`,
+                            headers
+                        });
+                        return bundle.entry?.map(e => e.resource) || [];
+                    } catch {
+                        return [];
+                    }
+                })();
+
+                const [_, genericVitals] = await Promise.all([
+                    Promise.all(vitalPromises),
+                    genericPromise
+                ]);
+
+                // Merge generic vitals — add any that weren't already covered by LOINC queries
+                const coveredIds = new Set();
+                Object.values(vitalsByType).flat().forEach(obs => {
+                    if (obs.id) coveredIds.add(obs.id);
+                });
+
+                const uncategorized = genericVitals.filter(obs => {
+                    if (obs.id && coveredIds.has(obs.id)) return false;
+                    // Check if any code matches a known LOINC
+                    const obsLoincs = obs.code?.coding?.map(c => c.code) || [];
+                    const matchedType = VITAL_TYPES.find(vt => obsLoincs.includes(vt.loinc));
+                    if (matchedType) {
+                        // Merge into the correct type if not duplicate
+                        if (!vitalsByType[matchedType.key].some(e => e.id === obs.id)) {
+                            vitalsByType[matchedType.key].push(obs);
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+
+                vitalsByType['_other'] = uncategorized;
+
+                renderVitals(vitalsByType);
+            } catch (e) {
+                document.getElementById('vital-list').innerHTML = `<div class="empty-state">⚠️ Could not load vital signs<br><span style="font-size:11px;opacity:0.6">${e.message || ''}</span></div>`;
+                document.getElementById('vital-count').innerText = "Error";
+                console.error("Vitals error:", e);
+            }
+        }
+
+        // ═════════════════════════════════
+        //  INIT
+        // ═════════════════════════════════
+
+        FHIR.oauth2.ready().then(client => {
+            const tr = client.state.tokenResponse || {};
+            let pid = client.patient?.id || tr.patient;
+
+            // === SCOPE DIAGNOSTIC ===
+            const grantedScopes = tr.scope || "NONE RETURNED";
+            const requestedScopes = client.state.scope || "unknown";
+            console.log("=== SCOPE DIAGNOSTIC ===");
+            console.log("Requested:", requestedScopes);
+            console.log("Granted:", grantedScopes);
+            console.log("Token keys:", Object.keys(tr).join(", "));
+            console.log("Access token:", tr.access_token ? tr.access_token.substring(0, 30) + "..." : "MISSING");
+
+            // Show scopes in the badge
+            document.getElementById('connection-badge').innerText = "Scopes: " + grantedScopes;
+            document.getElementById('connection-badge').title = "Requested: " + requestedScopes;
+
+            // Fallback: decode id_token for fhirUser
+            if (!pid && tr.id_token) {
+                const payload = decodeJWT(tr.id_token);
+                if (payload?.fhirUser) pid = payload.fhirUser.split('/').pop();
+            }
+
+            if (pid) {
+                fetchAll(client, pid);
+            } else {
+                document.getElementById('patient-name').innerText = "No patient context found";
+                document.getElementById('connection-badge').innerText = "Disconnected";
+                document.getElementById('connection-badge').style.color = 'var(--red)';
+            }
+        }).catch(err => {
+            document.getElementById('patient-name').innerText = "Authentication Failed";
+            document.getElementById('connection-badge').innerText = "Auth Error";
+            console.error("Auth error:", err);
+        });
+    </script>
+</body>
+
+</html>
